@@ -54,7 +54,7 @@ impl SkipList {
         };
     }
 
-    pub fn find_greater_or_eq(&self, key: &Bytes) -> (Option<Rc<RefCell<SkipListNode>>>, Vec<Rc<RefCell<SkipListNode>>>) {
+    fn find_greater_or_eq(&self, key: &Bytes) -> (Option<Rc<RefCell<SkipListNode>>>, Vec<Rc<RefCell<SkipListNode>>>) {
         let mut prev_nodes_by_levels = vec![self.head.clone(); MAX_HEIGHT];
         let mut level = self.current_height - 1;
         let mut current_node = self.head.clone();
@@ -75,7 +75,7 @@ impl SkipList {
     fn calculate_random_height(&self) -> usize {
         let mut height = 1;
         loop {
-            if height >= MAX_HEIGHT || random::<usize>() & BRANCH_FACTOR != 0 {
+            if height >= MAX_HEIGHT || random::<usize>() % BRANCH_FACTOR != 0 {
                 break;
             }
             height += 1;
@@ -106,21 +106,38 @@ impl SkipList {
             prev_nodes_by_levels[level].borrow_mut().next[level] = Some(new_node.clone())
         }
     }
+
+    pub fn contain(&self, key: &Bytes) -> bool {
+        let got = self.get(key);
+        got.is_some()
+    }
+
+    pub fn get(&self, key: &Bytes) -> Option<Bytes> {
+        let (found_next, _) = self.find_greater_or_eq(key);
+        if found_next.is_some() {
+            let node = &found_next.as_ref().unwrap().borrow();
+            if key.cmp(&node.key) == Ordering::Equal {
+                return Some(node.value.clone());
+            }
+        }
+        None
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use bytes::Bytes;
 
-    use crate::data::skiplist::{MAX_HEIGHT, SkipList};
+    use crate::data::skiplist::SkipList;
 
     #[test]
     fn it_works() {
         let mut skip_list = SkipList::new();
-        let item = Bytes::from("hello");
-        skip_list.insert(Bytes::from("hello"), Bytes::from("value"));
-        assert_eq!(found_node.is_some(), true);
-        assert_eq!(found_node.as_ref().unwrap().borrow().key, Bytes::from("hello"));
-        assert_eq!(found_node.as_ref().unwrap().borrow().value, Bytes::from("value"));
+        let key = Bytes::from("hello");
+        let value = Bytes::from("world");
+        skip_list.insert(key.clone(), value.clone());
+        let got = skip_list.get(&key);
+        assert_eq!(value.clone(), got.unwrap());
+        assert_eq!(skip_list.contain(&key), true);
     }
 }
